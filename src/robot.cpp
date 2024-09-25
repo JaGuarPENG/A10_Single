@@ -28,7 +28,7 @@ namespace robot
 		0, 0, -5 * PI / 6, PI / 3, PI / 2, 0 };
 
 		double input_angle1[6] =
-		{ 0, 0, 5 * PI / 6, -PI / 3, -PI / 2, 0 };
+		{ 0, 0, 0, 0, 0, 0 };
 
 		double input_angle2[6] =
 		{ 0, 0, -5 * PI / 6, PI / 3, PI / 2, 0 };
@@ -44,139 +44,256 @@ namespace robot
 		auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
 		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
 
-
-		double eepA1[6] = { 0 };
-		double eepBa[12] = { 0 };
-
-		model_a1.setInputPos(input_angle1);
-		if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
-		model_a1.getOutputPos(eepA1);
-
-		std::cout << "Arm1" << std::endl;
-		aris::dynamic::dsp(1, 6, eepA1);
-		
-		dualArm.setInputPos(input_angle);
-		if (dualArm.forwardKinematics())std::cout << "forward failed" << std::endl;
-		dualArm.getOutputPos(eepBa);
-
-		std::cout << "dual" << std::endl;
-		aris::dynamic::dsp(1, 12, eepBa);
-
-		double Arm1_angle[6]{ 0 };
-		double Dual_angle[12]{ 0 };
+		auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
+		auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
 
 
-		model_a1.setOutputPos(eepA1);
-		if (model_a1.inverseKinematics())std::cout << "inverse failed" << std::endl;
-		model_a1.getInputPos(Arm1_angle);
+		//double eepA1[6] = { 0 };
+		//double eepBa[12] = { 0 };
 
-		std::cout << "inverse Arm1" << std::endl;
-		aris::dynamic::dsp(1, 6, Arm1_angle);
+		//model_a1.setInputPos(input_angle1);
+		//if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
+		//model_a1.getOutputPos(eepA1);
 
-
-		dualArm.setOutputPos(eepBa);
-		if (dualArm.inverseKinematics())std::cout << "inverse failed" << std::endl;
-		dualArm.getInputPos(Dual_angle);
-		
-		std::cout << "inverse dual" << std::endl;
-		aris::dynamic::dsp(1, 12, Dual_angle);
+		////std::cout << "Arm1" << std::endl;
+		////aris::dynamic::dsp(1, 6, eepA1);
 
 
-		//position
-		double a1_stcp[6]{};
-		double a2_stcp[12]{};
-		//velocity
-		double a1_vtcp[6]{};
-		double a2_vtcp[12]{};
+		//double ee1_pm[16]{ 0 };
+		//eeA1.getMpm(ee1_pm);
+		////mout() << "pm:" << std::endl;
+		////aris::dynamic::dsp(1, 16, ee1_pm);
+		//
+		//dualArm.setInputPos(input_angle);
+		//if (dualArm.forwardKinematics())std::cout << "forward failed" << std::endl;
+		//dualArm.getOutputPos(eepBa);
 
-		//get ee
-		auto& eeA1 = model_a1.generalMotionPool().at(0);
-		auto& eeA2 = model_a2.generalMotionPool().at(0);
+		////std::cout << "dual" << std::endl;
+		////aris::dynamic::dsp(1, 12, eepBa);
 
-		eeA1.getP(a1_stcp);
-		std::cout << "Arm1 ee pos" << std::endl;
-		aris::dynamic::dsp(1, 6, a1_stcp);
-
-		std::cout << "Arm1 ee vel" << std::endl;
-		eeA1.getV(a1_vtcp);
-		aris::dynamic::dsp(1, 6, a1_vtcp);
-
-		eeA1.updP();
-
-		//both arm move
-		auto baMove = [&](double* pos_) {
-
-			dualArm.setOutputPos(pos_);
-
-			if (dualArm.inverseKinematics())
-			{
-				throw std::runtime_error("Inverse Kinematics Position Failed!");
-			}
+		//double Arm1_angle[6]{ 0 };
+		//double Dual_angle[12]{ 0 };
 
 
-			double x_joint[12]{ 0 };
+		//model_a1.setOutputPos(eepA1);
+		//if (model_a1.inverseKinematics())std::cout << "inverse failed" << std::endl;
+		//model_a1.getInputPos(Arm1_angle);
 
-			dualArm.getInputPos(x_joint);
-
-
-			for (std::size_t i = 0; i < 12; ++i)
-			{
-				controller()->motorPool()[i].setTargetPos(x_joint[i]);
-			}
-
-		};
-
-		//single arm move 1-->white 2-->blue
-		auto saMove = [&](double* pos_, aris::dynamic::Model& model_, int type_) {
-
-			model_.setOutputPos(pos_);
-
-			if (model_.inverseKinematics())
-			{
-				throw std::runtime_error("Inverse Kinematics Position Failed!");
-			}
+		////std::cout << "inverse Arm1" << std::endl;
+		////aris::dynamic::dsp(1, 6, Arm1_angle);
 
 
-			double x_joint[6]{ 0 };
-
-			model_.getInputPos(x_joint);
-
-			if (type_ == 0)
-			{
-				for (std::size_t i = 0; i < 6; ++i)
-				{
-					controller()->motorPool()[i].setTargetPos(x_joint[i]);
-				}
-			}
-			else if (type_ == 1)
-			{
-				for (std::size_t i = 0; i < 6; ++i)
-				{
-					controller()->motorPool()[i + 6].setTargetPos(x_joint[i]);
-				}
-			}
-			else
-			{
-				throw std::runtime_error("Arm Type Error");
-			}
-		};
+		//dualArm.setOutputPos(eepBa);
+		//if (dualArm.inverseKinematics())std::cout << "inverse failed" << std::endl;
+		//dualArm.getInputPos(Dual_angle);
+		//
+		////std::cout << "inverse dual" << std::endl;
+		////aris::dynamic::dsp(1, 12, Dual_angle);
 
 
+		////position
+		//double a1_stcp[6]{};
+		//double a2_stcp[12]{};
+		////velocity
+		//double a1_vtcp[6]{};
+		//double a2_vtcp[12]{};
 
-		double posTest[6]{ 0.402373, 0.124673, 0.136492, 6.283185, 0.000000, 3.141593 };
-		saMove(posTest, model_a1, 1);
+		////get ee
+		//
 
-		double test[12]{};
-		dualArm.getOutputPos(test);
+		//eeA1.getP(a1_stcp);
+		////std::cout << "Arm1 ee pos" << std::endl;
+		////aris::dynamic::dsp(1, 6, a1_stcp);
 
-		std::cout << "test" << std::endl;
-		aris::dynamic::dsp(1, 12, test);
+		////std::cout << "Arm1 ee vel" << std::endl;
+		//eeA1.getV(a1_vtcp);
+		////aris::dynamic::dsp(1, 6, a1_vtcp);
+
+		//eeA1.updP();
+
+		////both arm move
+		//auto baMove = [&](double* pos_) {
+
+		//	dualArm.setOutputPos(pos_);
+
+		//	if (dualArm.inverseKinematics())
+		//	{
+		//		throw std::runtime_error("Inverse Kinematics Position Failed!");
+		//	}
+
+
+		//	double x_joint[12]{ 0 };
+
+		//	dualArm.getInputPos(x_joint);
+
+
+		//	for (std::size_t i = 0; i < 12; ++i)
+		//	{
+		//		controller()->motorPool()[i].setTargetPos(x_joint[i]);
+		//	}
+
+		//};
+
+		////single arm move 1-->white 2-->blue
+		//auto saMove = [&](double* pos_, aris::dynamic::Model& model_, int type_) {
+
+		//	model_.setOutputPos(pos_);
+
+		//	if (model_.inverseKinematics())
+		//	{
+		//		throw std::runtime_error("Inverse Kinematics Position Failed!");
+		//	}
+
+
+		//	double x_joint[6]{ 0 };
+
+		//	model_.getInputPos(x_joint);
+
+		//	if (type_ == 0)
+		//	{
+		//		for (std::size_t i = 0; i < 6; ++i)
+		//		{
+		//			controller()->motorPool()[i].setTargetPos(x_joint[i]);
+		//		}
+		//	}
+		//	else if (type_ == 1)
+		//	{
+		//		for (std::size_t i = 0; i < 6; ++i)
+		//		{
+		//			controller()->motorPool()[i + 6].setTargetPos(x_joint[i]);
+		//		}
+		//	}
+		//	else
+		//	{
+		//		throw std::runtime_error("Arm Type Error");
+		//	}
+		//};
+
+
+
+		//double posTest[6]{ 0.402373, 0.124673, 0.136492, 6.283185, 0.000000, 3.141593 };
+		//saMove(posTest, model_a1, 1);
+
+		//double test[12]{};
+		//dualArm.getOutputPos(test);
+
+		//std::cout << "test" << std::endl;
+		//aris::dynamic::dsp(1, 12, test);
 
 
 
 
 
 		////example1 end/////
+
+		////GC test////
+
+		//double force_data_1[6]{ 0.126953, 0, 0.410156, 0.00234375, 0.00390625, 0.00117188 };
+		//double force_data_2[6]{ -0.136719, 0.078125, 0.664062, 0.00507813, 0.00351563, 0.00117188 };
+		//double force_data_3[6]{ -0.0976562, -0.195312, 0.410156, 0.00507813, 0.00273437, 0.00117188 };
+
+		double force_data_1[6]{ 2.0856,	6.357,	4.906,	0.0423, - 0.0283,	0.0808 };
+		double force_data_2[6]{ 2.1013,	4.5775,	7.9831,	0.0378, - 0.0286,	0.0807 };
+		double force_data_3[6]{ 3.0116,	5.8671,	6.4544,	0.0428 ,- 0.0324,	0.0806 };
+		
+
+		static double pos2_1[12]{ 0, 0, -5 * PI / 6, 5 * PI / 6, PI / 2, PI / 2 };
+		static double pos2_2[12]{ 0, 0, -5 * PI / 6, PI / 2, PI / 2, PI / 2 };
+		static double pos2_3[12]{ 0, 0, -5 * PI / 6, 2 * PI / 3, 2 * PI / 3, PI / 2 };
+
+		//double ee_pm_1[16]{ -1.95049e-15, -3.56239e-15, 1, 0.393,
+		//					-3.49721e-15, 1, 3.42057e-15, 2.49707e-16,
+		//					-1, -3.48575e-15, -4.9181e-15, 0.642,
+		//					0, 0, 0, 1 };
+		//double ee_pm_2[16]{ -1, 3.22243e-15, -3.33438e-15, 0.32,
+		//					3.23975e-15, 1, 3.23109e-15, 2.35869e-16,
+		//					3.45997e-15, 3.23109e-15, -1, 0.569,
+		//					0, 0, 0, 1 };
+		//double ee_pm_3[16]{ -1, 1.02138e-14, -3.36091e-15, 0.32,
+		//					-3.37713e-15, -3.17117e-15, 1, 0.073,
+		//					1.02143e-14, 1, 3.17117e-15, 0.642,
+		//					0, 0, 0, 1 };
+
+		double ee_pm_1[16]{ 0 };
+		double ee_pm_2[16]{ 0 };
+		double ee_pm_3[16]{ 0 };
+
+		model_a2.setInputPos(pos2_1);
+		if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+		eeA2.getMpm(ee_pm_1);
+
+		model_a2.setInputPos(pos2_2);
+		if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+		eeA2.getMpm(ee_pm_2);
+
+		model_a2.setInputPos(pos2_3);
+		if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+		eeA2.getMpm(ee_pm_3);
+
+
+		double t_vector[9]{ 0 };
+		double f_vector[9]{ 0 };
+
+		double f_matrix[54]{ 0 };
+		double r_matrix[54]{ 0 };
+
+		double p_vector[6]{ 0 };
+		double l_vector[6]{ 0 };
+
+
+
+		double ee_rm_1[9]{ 0 };
+		double ee_rm_2[9]{ 0 };
+		double ee_rm_3[9]{ 0 };
+
+		double current_force[6]{ 0 };
+
+		aris::dynamic::s_pm2rm(ee_pm_1, ee_rm_1);
+		aris::dynamic::s_pm2rm(ee_pm_2, ee_rm_2);
+
+
+		aris::dynamic::s_pm2rm(ee_pm_3, ee_rm_3);
+
+		GravComp gc;
+
+		gc.getTorqueVector(force_data_1, force_data_2, force_data_3, t_vector);
+		gc.getForceVector(force_data_1, force_data_2, force_data_3, f_vector);
+
+		gc.getFMatrix(force_data_1, force_data_2, force_data_3, f_matrix);
+		gc.getRMatrix(ee_rm_1, ee_rm_2, ee_rm_3, r_matrix);
+
+		gc.getPLMatrix(f_matrix, t_vector, p_vector);
+		gc.getPLMatrix(r_matrix, f_vector, l_vector);
+
+
+
+
+		double current_pose_a1[16] = { -1, 6.63139e-15, -4.70536e-15, 0.32,
+										1.33547e-15, 0.707107, 0.707107, 0.0516188,
+										8.30063e-15, 0.707107, -0.707107, 0.590381,
+										0, 0, 0, 1 };
+
+		double test_force1[6]{ -0.0976562, -0.0976562, 0.595703, 0.00546875, 0.00234375, 0.00117188 };
+
+
+
+		double comp_f[6]{ 0 };
+		gc.getCompFT(ee_pm_1, l_vector, p_vector, comp_f);
+
+
+		double final_force[6]{ 0 };
+		for (int i = 0; i < 6; i++)
+		{
+			final_force[i] = force_data_1[i] + comp_f[i];
+		}
+
+		mout() << "ff: " << std::endl;
+		aris::dynamic::dsp(1, 6, final_force);
+
+
+
+
+
 	
 
 
@@ -297,51 +414,482 @@ namespace robot
 	}
 	auto ModelTest::executeRT() -> int
 	{
-		static double initPos[12]{ 0, 0, 5 * PI / 6, -5 * PI / 6, -90, 0,
-							0, 0, -5 * PI / 6, 5 * PI / 6, 90, 0 };
 
-		modelBase()->setInputPos(initPos);
-		if (modelBase()->forwardKinematics())std::cout << "forward failed" << std::endl;
+		//dual transform modelbase into multimodel
+		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		//at(0) -> Arm1 ->white
+		auto& arm1 = dualArm.subModels().at(0);
+		//at(1) -> Arm2 ->blue
+		auto& arm2 = dualArm.subModels().at(1);
 
-		double eePos[12]{ 0 };
+		//transform to model
+		auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
+		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
 
-		modelBase()->getOutputPos(eePos);
-		std::cout << "init" << std::endl;
-		aris::dynamic::dsp(1, 12, eePos);
 
-		double finaleePos[12] = { 0 };
+		double force_data1[6]{ 0.126953, 0, 0.410156, 0.00234375, 0.00390625, 0.00117188 };
+		double force_data2[6]{ -0.136719, 0.078125, 0.664062, 0.00507813, 0.00351563, 0.00117188 };
+		double force_data3[6]{ -0.0976562, -0.195312, 0.410156, 0.00507813, 0.00273437, 0.00117188 };
 
-		for (int i = 0; i < 12; i++)
+
+		double pose1[9]{ -1.95049e-15, -3.56239e-15, 1,
+						-3.49721e-15, 1, 3.42057e-15,
+						-1, -3.48575e-15, -4.9181e-15 };
+
+		double pose2[9]{ -1, 3.22243e-15, -3.33438e-15,
+						3.23975e-15, 1, 3.23109e-15,
+						3.45997e-15, 3.23109e-15, -1 };
+
+		double pose3[9]{ -1, 1.02138e-14, -3.36091e-15,
+						-3.37713e-15, -3.17117e-15, 1,
+						1.02143e-14, 1, 3.17117e-15 };
+
+		//EE Force Compensate Caculation
+		//Refer to 10.16383/j.aas.2017.c150753
+
+		//p = [x, y, z, k1, k2, k3]T
+		//m = [mx1, my1, mz1, ... mx3, my3, mz3]T
+		//p = inv(F.t * F) * F.t * m
+
+
+		//l = [Lx, Ly, Lz, Fx0, Fy0, Fz0]T
+		//f = [Fx1, Fy1, Fz1, ... Fx3, Fy3, Fz3]T
+		//l = inv(R.t * R) * R.t * f
+
+		//Get m
+		auto getTorqueVector = [](double force_data1_[6], double force_data2_[6], double force_data3_[6], double torque_vector_[9]) {
+			std::copy(force_data1_ + 3, force_data1_ + 6, torque_vector_);
+			std::copy(force_data2_ + 3, force_data2_ + 6, torque_vector_ + 3);
+			std::copy(force_data3_ + 3, force_data3_ + 6, torque_vector_ + 6);
+		};
+
+
+		//Get f
+		auto getForceVector = [](double force_data1_[6], double force_data2_[6], double force_data3_[6], double force_vector_[9]) {
+			std::copy(force_data1_, force_data1_ + 3, force_vector_);
+			std::copy(force_data2_, force_data2_ + 3, force_vector_ + 3);
+			std::copy(force_data3_, force_data3_ + 3, force_vector_ + 6);
+		};
+
+
+		//Temp To Caculate F
+		auto getTempFMatrix = [](double force_data_[6], double temp_[18]) {
+
+			double tempInit[18] = { 0, force_data_[2], -force_data_[1], 1, 0, 0,
+									-force_data_[2], 0, force_data_[0], 0, 1, 0,
+									force_data_[1], -force_data_[0], 0, 0, 0, 1 };
+
+			std::copy(tempInit, tempInit + 18, temp_);
+
+		};
+
+		//Temp To Caculate R
+		auto getTempRMatrix = [](double pose_matrix_[9], double temp_[18]) {
+
+			double tempInit[18] = { pose_matrix_[0], pose_matrix_[3], pose_matrix_[6], 1, 0, 0,
+									pose_matrix_[1], pose_matrix_[4], pose_matrix_[7], 0, 1, 0,
+									pose_matrix_[2], pose_matrix_[5], pose_matrix_[8], 0, 0, 1 };
+
+			std::copy(tempInit, tempInit + 18, temp_);
+
+		};
+
+		//Get F
+		auto getFMatrix = [getTempFMatrix](double force_data1_[6], double force_data2_[6], double force_data3_[6], double f_matrix_[54]) {
+
+			double temp1[18] = { 0 };
+			double temp2[18] = { 0 };
+			double temp3[18] = { 0 };
+
+			getTempFMatrix(force_data1_, temp1);
+			getTempFMatrix(force_data2_, temp2);
+			getTempFMatrix(force_data3_, temp3);
+
+			std::copy(temp1, temp1 + 18, f_matrix_);
+			std::copy(temp2, temp2 + 18, f_matrix_ + 18);
+			std::copy(temp3, temp3 + 18, f_matrix_ + 36);
+
+		};
+
+		//Get R
+		auto getRMatrix = [getTempRMatrix](double pose_matrix1_[9], double pose_matrix2_[9], double pose_matrix3_[9], double r_matrix_[54]) {
+
+			double temp1[18] = { 0 };
+			double temp2[18] = { 0 };
+			double temp3[18] = { 0 };
+
+			getTempRMatrix(pose_matrix1_, temp1);
+			getTempRMatrix(pose_matrix2_, temp2);
+			getTempRMatrix(pose_matrix3_, temp3);
+
+			std::copy(temp1, temp1 + 18, r_matrix_);
+			std::copy(temp2, temp2 + 18, r_matrix_ + 18);
+			std::copy(temp3, temp3 + 18, r_matrix_ + 36);
+
+		};
+
+
+
+		// Caculate Least Square To Get P && L Vector
+		auto getPLVector = [](double f_r_matrix_[54], double torque_force_data_[9], double P_L[6]) {
+
+			//   m : �У�  n : �� 
+			//   rank: ���Բ���д
+			//   U :        m x n
+			//  tau : max(m,n) x 1
+			//    p : max(m,n) x 1
+			//    x :        n x m
+
+			// refer to math_matrix.hpp in aris
+
+			double U[54]{ 0 };
+			double Inv_[54]{ 0 };
+			double tau[9]{ 0 };
+
+
+			aris::Size p[9];
+			aris::Size rank;
+
+			// utp decomption, 1e-5 ����
+			aris::dynamic::s_householder_utp(9, 6, f_r_matrix_, U, tau, p, rank, 1e-6);
+			// inverse
+			aris::dynamic::s_householder_up2pinv(9, 6, rank, U, p, Inv_, 1e-6);
+			// multiple
+			aris::dynamic::s_mm(6, 1, 9, Inv_, torque_force_data_, P_L);
+
+		};
+
+		double P[6]{ 0 };
+		double torque[9]{ 0 };
+		double f_matrix[54]{ 0 };
+
+		getTorqueVector(force_data1, force_data2, force_data3, torque);
+		getFMatrix(force_data1, force_data2, force_data3, f_matrix);
+		getPLVector(f_matrix, torque, P);
+		aris::dynamic::dsp(1, 6, P);
+
+
+		double L[6]{ 0 };
+		double force[9]{ 0 };
+		double r_matrix[54]{ 0 };
+
+		getForceVector(force_data1, force_data2, force_data3, force);
+		getRMatrix(pose1, pose2, pose3, r_matrix);
+		getPLVector(r_matrix, force, L);
+		aris::dynamic::dsp(1, 6, L);
+
+		aris::dynamic::dsp(1, 54, r_matrix);
+
+		double tool_x = P[0];
+		double tool_y = P[1];
+		double tool_z = P[2];
+
+		double k1 = P[3];
+		double k2 = P[4];
+		double k3 = P[5];
+
+		double Lx = L[0];
+		double Ly = L[1];
+		double Lz = L[2];
+
+		double Fx0 = L[3];
+		double Fy0 = L[4];
+		double Fz0 = L[5];
+
+		double tool_load = sqrt(Lx * Lx + Ly * Ly + Lz * Lz);
+
+		//std::cout << "load: " << tool_load << std::endl;
+
+		double U = std::asin(-Ly / tool_load);
+		double V = std::atan(-Lx / Ly);
+
+		double Mx0 = k1 - Fy0 * tool_z - Fz0 * tool_y;
+		double My0 = k2 - Fz0 * tool_x - Fx0 * tool_z;
+		double Mz0 = k3 - Fx0 * tool_y - Fy0 * tool_x;
+
+		//get ee
+		//auto& eeA1 = model_a1.generalMotionPool().at(0);
+		//auto& eeA2 = model_a2.generalMotionPool().at(0);
+
+		//auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
+		//auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+
+		//double current_pose_a1[16]{ 0 };
+		//double current_pose_a2[9]{ 0 };
+
+		//double input_angle1[6] =
+		//{ 0, 0, 5 * PI / 6, -PI / 3, -PI / 2, 0 };
+		//double eepA1[6] = { 0 };
+
+		//model_a1.setInputPos(input_angle1);
+		//if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
+		//model_a1.getOutputPos(eepA1);
+
+
+
+		//eeA1.getMpm(current_pose_a1);
+
+		//eeA2.getMpm(current_pose_a2);
+		//aris::dynamic::dsp(1, 16, current_pose_a1);
+
+		double current_pose_a1[16] = { -1, 6.63139e-15, -4.70536e-15, 0.32,
+										1.33547e-15, 0.707107, 0.707107, 0.0516188,
+										8.30063e-15, 0.707107, -0.707107, 0.590381,
+										0, 0, 0, 1 };
+
+		double current_pose_a2[16] = { -0.5, 1.97435e-14, 0.866025, 0.38322,
+										0.433013, 0.866025, 0.25, 0.01825,
+										-0.75, 0.5, -0.433013, 0.61039,
+										0, 0, 0, 1 };
+
+		double current_pose_a3[16] = { 0.766044, -3.87809e-15, 0.642788, 0.366923,
+										0.321394, 0.866025, -0.383022, -0.0279606,
+										-0.55667, 0.5, 0.663414, 0.690429,
+										0, 0, 0, 1 };
+
+		double current_pose_a4[16] = { 0.866025, 8.73219e-16, 0.5, 0.3565,
+										0.0868241, 0.984808, -0.150384, -0.010978,
+										-0.492404, 0.173648, 0.852869, 0.704259,
+										0, 0, 0, 1 };
+
+
+		auto getCompFT = [](double current_pose_[16], double L_[6], double P_[6], double comp_f_[6]) {
+
+			double current_rotate[9]{ 0 };
+			double inv_rotate[9]{ 0 };
+
+			double G_vector[3]{ 0 };
+
+			double F_vector[3]{ 0 };
+			double L_vector[3]{ 0 };
+
+			double Mass_center[3]{ 0 };
+			double K_vector[3]{ 0 };
+
+			double Mg[3]{ 0 };
+			double M0[3]{ 0 };
+
+			std::copy(L_ + 3, L_ + 6, F_vector);//fx0 fy0 fz0
+			//aris::dynamic::dsp(1, 3, F_vector);
+			std::copy(L_, L_ + 3, L_vector);// lx ly lz -> Gx Gy Gz
+			std::copy(P_, P_ + 3, Mass_center);//x0 y0 z0 -> Mgx Mgy Mgz
+			std::copy(P_ + 3, P_ + 6, K_vector);//k1 k2 k3 -> Mx0 My0 Mz0
+
+			aris::dynamic::s_pm2rm(current_pose_, current_rotate);
+			aris::dynamic::s_inv_rm(current_rotate, inv_rotate);
+
+			aris::dynamic::s_rm_dot_v3(inv_rotate, L_vector, G_vector);
+
+
+			//aris::dynamic::dsp(1, 3, G_vector);
+
+			//comp x y z
+			for (int i = 0; i < 3; i++)
+			{
+				comp_f_[i] = -F_vector[i] - G_vector[i];
+			}
+
+
+			Mg[0] = -G_vector[2] * Mass_center[1] - G_vector[1] * Mass_center[2];
+			Mg[1] = -G_vector[0] * Mass_center[2] - G_vector[2] * Mass_center[0];
+			Mg[2] = -G_vector[1] * Mass_center[0] - G_vector[0] * Mass_center[1];
+
+			M0[0] = K_vector[0] - F_vector[1] * Mass_center[2] - F_vector[2] * Mass_center[1];
+			M0[1] = K_vector[1] - F_vector[2] * Mass_center[0] - F_vector[1] * Mass_center[2];
+			M0[2] = K_vector[2] - F_vector[0] * Mass_center[1] - F_vector[0] * Mass_center[0];
+
+
+			//comp mx my mz
+			for (int i = 3; i < 6; i++)
+			{
+				comp_f_[i] = -M0[i - 3] - Mg[i - 3];
+			}
+
+
+		};
+
+		double ee_pm_1[16]{ -1.95049e-15, -3.56239e-15, 1, 0.393,
+							-3.49721e-15, 1, 3.42057e-15, 2.49707e-16,
+							-1, -3.48575e-15, -4.9181e-15, 0.642,
+							0, 0, 0, 1 };
+
+
+		double comp1[6]{ 0 };
+
+		getCompFT(ee_pm_1, L, P, comp1);
+		aris::dynamic::dsp(1, 6, comp1);
+
+
+		double test_force1[6]{ -0.0976562, -0.0976562, 0.595703, 0.00546875, 0.00234375, 0.00117188 };
+		double comp_f[6]{ 0 };
+
+
+
+		for (int i = 0; i < 6; i++)
 		{
-			finaleePos[i] = eePos[i];
+			comp_f[i] = force_data1[i] + comp1[i];
+			std::cout << "lambda test " << i << " force: " << comp_f[i] << std::endl;
 		}
 
-		finaleePos[0] = eePos[0] + 0.5;
-		std::cout << "final" << std::endl;
-		aris::dynamic::dsp(1, 12, finaleePos);
 
 
 
-		modelBase()->setOutputPos(finaleePos);
-		if (modelBase()->inverseKinematics())std::cout << "inverse failed" << std::endl;
-		double finalpos[12] = { 0 };
-		modelBase()->getInputPos(finalpos);
 
-		aris::dynamic::dsp(1, 12, finalpos);
 
-		double finalangle[12] = { 0 };
 
-		for (int i = 0; i < 12; i++)
-		{
-			finalangle[i] = finalpos[i] * 180 / PI;
-		}
 
-		std::cout << "final angle" << std::endl;
+		//double current_rotation_m1[9]{ 0 };
+		//double current_rotation_m2[9]{ 0 };
 
-		aris::dynamic::dsp(1, 12, finalangle);
+		//double current_rotation_m3[9]{ 0 };
+		//double current_rotation_m4[9]{ 0 };
 
-		
-		
+
+		//aris::dynamic::s_pm2rm(current_pose_a1, current_rotation_m1);
+		//aris::dynamic::s_pm2rm(current_pose_a2, current_rotation_m2);
+
+		//aris::dynamic::s_pm2rm(current_pose_a3, current_rotation_m3);
+		//aris::dynamic::s_pm2rm(current_pose_a4, current_rotation_m4);
+
+
+		//double inv_current_rotation_m1[9]{ 0 };
+		//double inv_current_rotation_m2[9]{ 0 };
+
+		//double inv_current_rotation_m3[9]{ 0 };
+		//double inv_current_rotation_m4[9]{ 0 };
+
+		//aris::dynamic::s_inv_rm(current_rotation_m1, inv_current_rotation_m1);
+
+
+		//aris::dynamic::s_inv_rm(current_rotation_m2, inv_current_rotation_m2);
+
+		//aris::dynamic::s_inv_rm(current_rotation_m3, inv_current_rotation_m3);
+		//aris::dynamic::s_inv_rm(current_rotation_m4, inv_current_rotation_m4);
+		//
+
+
+
+
+		//double L_vector[3] = { Lx,Ly,Lz };
+
+		//double G_vector1[3]{ 0 };
+		//double G_vector2[3]{ 0 };
+
+		//double G_vector3[3]{ 0 };
+		//double G_vector4[3]{ 0 };
+
+		//
+
+		//double test_force2[6]{ 0.0390625, - 0.0878906, 0.527344, 0.00390625, 0.00429688, 0.00117188 };
+
+		//double test_force3[6]{ 0.0683594, - 0.078125, 0.205078, 0.00390625, 0.00234375, 0.00117188 };
+
+		//double test_force4[6]{ 0.0390625, 0, 0.136719, 0.00390625, 0.00234375, 0.0015625 };
+
+
+
+		//aris::dynamic::s_rm_dot_v3(inv_current_rotation_m1, L_vector, G_vector1);
+
+
+		//aris::dynamic::dsp(1, 3, G_vector1);
+
+		//aris::dynamic::s_rm_dot_v3(inv_current_rotation_m2, L_vector, G_vector2);
+
+		//aris::dynamic::s_rm_dot_v3(inv_current_rotation_m3, L_vector, G_vector3);
+		//aris::dynamic::s_rm_dot_v3(inv_current_rotation_m4, L_vector, G_vector4);
+
+
+		//std::cout << "111 " << -Fx0 - G_vector1[0] << std::endl;
+
+		//double Fex1 = test_force1[0] - Fx0 - G_vector1[0];
+		//double Fey1 = test_force1[1] - Fy0 - G_vector1[1];
+		//double Fez1 = test_force1[2] - Fz0 - G_vector1[2];
+
+		//double Fex2 = test_force2[0] - Fx0 - G_vector2[0];
+		//double Fey2 = test_force2[1] - Fy0 - G_vector2[1];
+		//double Fez2 = test_force2[2] - Fz0 - G_vector2[2];
+
+		//std::cout << "Fex1: " << Fex1 << std::endl;
+		//std::cout << "Fey1: " << Fey1 << std::endl;
+		//std::cout << "Fez1: " << Fez1 << std::endl;
+
+		////std::cout << "Fex2: " << Fex2 << std::endl;
+		////std::cout << "Fey2: " << Fey2 << std::endl;
+		////std::cout << "Fez2: " << Fez2 << std::endl;
+
+
+		//double Mgx1 = -G_vector1[2] * tool_y - G_vector1[1] * tool_z;
+		//double Mgy1 = -G_vector1[0] * tool_z - G_vector1[2] * tool_x;
+		//double Mgz1 = -G_vector1[1] * tool_x - G_vector1[0] * tool_y;
+
+		//double Mgx2 = -G_vector2[2] * tool_y - G_vector2[1] * tool_z;
+		//double Mgy2 = -G_vector2[0] * tool_z - G_vector2[2] * tool_x;
+		//double Mgz2 = -G_vector2[1] * tool_x - G_vector2[0] * tool_y;
+
+		//double Mex1 = test_force1[3] - Mx0 - Mgx1;
+		//double Mey1 = test_force1[4] - My0 - Mgy1;
+		//double Mez1 = test_force1[5] - Mz0 - Mgz1;
+
+		//double Mex2 = test_force2[3] - Mx0 - Mgx2;
+		//double Mey2 = test_force2[4] - My0 - Mgy2;
+		//double Mez2 = test_force2[5] - Mz0 - Mgz2;
+
+
+		////std::cout << "Mex1: " << Mex1 << std::endl;
+		////std::cout << "Mey1: " << Mey1 << std::endl;
+		////std::cout << "Mez1: " << Mez1 << std::endl;
+
+
+
+
+
+
+		//double Fex3 = test_force3[0] - Fx0 - G_vector3[0];
+		//double Fey3 = test_force3[1] - Fy0 - G_vector3[1];
+		//double Fez3 = test_force3[2] - Fz0 - G_vector3[2];
+
+		//double Fex4 = test_force4[0] - Fx0 - G_vector4[0];
+		//double Fey4 = test_force4[1] - Fy0 - G_vector4[1];
+		//double Fez4 = test_force4[2] - Fz0 - G_vector4[2];
+
+		////std::cout << "Fex3: " << Fex3 << std::endl;
+		////std::cout << "Fey3: " << Fey3 << std::endl;
+		////std::cout << "Fez3: " << Fez3 << std::endl;
+
+		////std::cout << "Fex4: " << Fex4 << std::endl;
+		////std::cout << "Fey4: " << Fey4 << std::endl;
+		////std::cout << "Fez4: " << Fez4 << std::endl;
+
+
+		//double Mgx3 = -G_vector3[2] * tool_y - G_vector3[1] * tool_z;
+		//double Mgy3 = -G_vector3[0] * tool_z - G_vector3[2] * tool_x;
+		//double Mgz3 = -G_vector3[1] * tool_x - G_vector3[0] * tool_y;
+
+		//double Mgx4 = -G_vector4[2] * tool_y - G_vector4[1] * tool_z;
+		//double Mgy4 = -G_vector4[0] * tool_z - G_vector4[2] * tool_x;
+		//double Mgz4 = -G_vector4[1] * tool_x - G_vector4[0] * tool_y;
+
+		//double Mex3 = test_force3[3] - Mx0 - Mgx3;
+		//double Mey3 = test_force3[4] - My0 - Mgy3;
+		//double Mez3 = test_force3[5] - Mz0 - Mgz3;
+
+		//double Mex4 = test_force4[3] - Mx0 - Mgx4;
+		//double Mey4 = test_force4[4] - My0 - Mgy4;
+		//double Mez4 = test_force4[5] - Mz0 - Mgz4;
+
+
+		////std::cout << "Mex3: " << Mex3 << std::endl;
+		////std::cout << "Mey3: " << Mey3 << std::endl;
+		////std::cout << "Mez3: " << Mez3 << std::endl;
+
+		////std::cout << "Mex4: " << Mex4 << std::endl;
+		////std::cout << "Mey4: " << Mey4 << std::endl;
+		////std::cout << "Mez4: " << Mez4 << std::endl;
+
+
+
+
+
 
 		return 0;
 	}
@@ -633,13 +1181,7 @@ namespace robot
 
 
 
-	struct ModelComP::Imp {
-		bool target1_reached = false;
-		bool target2_reached = false;
-		bool target3_reached = false;
-
-		int m_;
-	};
+	
 
 	auto ModelComP::prepareNrt()->void
 	{
@@ -893,7 +1435,6 @@ namespace robot
 			return 10 - count();
 			
 
-
 		}
 
 		// arm 2 blue arm
@@ -961,6 +1502,8 @@ namespace robot
 		aris::core::class_<ModelSetPos>("ModelSetPos")
 			.inherit<aris::plan::Plan>();
 		aris::core::class_<ModelComP>("ModelComP")
+			.inherit<aris::plan::Plan>();
+		aris::core::class_<ModelTest>("ModelTest")
 			.inherit<aris::plan::Plan>();
 
 	}

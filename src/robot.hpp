@@ -101,6 +101,14 @@ class ModelComP :public aris::core::CloneObject<ModelComP, aris::plan::Plan>
 		struct Imp;
 		aris::core::ImpPtr<Imp> imp_;
 
+		struct ModelComP::Imp {
+			bool target1_reached = false;
+			bool target2_reached = false;
+			bool target3_reached = false;
+
+			int m_;
+		};
+
 	};
 
 

@@ -255,7 +255,7 @@ auto GravComp::getCompFT(double current_pose_[16], double L_[6], double P_[6], d
 	double M0[3]{ 0 };
 
 	std::copy(L_ + 3, L_ + 6, F_vector);  // fx0 fy0 fz0
-	aris::dynamic::dsp(1, 3, F_vector);
+	//aris::dynamic::dsp(1, 3, F_vector);
 	std::copy(L_, L_ + 3, L_vector);  // lx ly lz -> Gx Gy Gz
 	std::copy(P_, P_ + 3, Mass_center);  // x0 y0 z0 -> Mgx Mgy Mgz
 	std::copy(P_ + 3, P_ + 6, K_vector);  // k1 k2 k3 -> Mx0 My0 Mz0
@@ -264,7 +264,7 @@ auto GravComp::getCompFT(double current_pose_[16], double L_[6], double P_[6], d
 	aris::dynamic::s_inv_rm(current_rotate, inv_rotate);
 
 	aris::dynamic::s_rm_dot_v3(inv_rotate, L_vector, G_vector);
-	aris::dynamic::dsp(1, 3, G_vector);
+	//aris::dynamic::dsp(1, 3, G_vector);
 
 	// comp x y z
 	for (int i = 0; i < 3; i++) {

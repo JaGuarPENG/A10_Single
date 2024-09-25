@@ -818,6 +818,10 @@
 				<Command __prop_name__="command" name="m_set">
 				</Command>
 			</ModelSetPos>
+			<ModelTest name="plan">
+				<Command __prop_name__="command" name="m_test">
+				</Command>
+			</ModelTest>
             <ModelMoveX name="plan">
 				<Command __prop_name__="command" name="m_x">
 					<GroupParam name="group_param">
