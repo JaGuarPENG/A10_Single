@@ -1804,6 +1804,44 @@ namespace robot
 
 
 
+		eeA2.getV(current_vel);
+		eeA2.getP(current_pos);
+		
+		//Contact Check
+		if (abs(Actual_force[2]) > 0.5)
+		{
+			imp_->contact_check = true;
+		}
+
+
+		if (!imp_->contact_check)
+		{
+
+		}
+		else if (imp_->contact_check)
+		{
+
+		}
+
+		//Over Time Exit
+		if (count() == 800000)
+		{
+			mout() << "Over Time" << std::endl;
+		}
+
+		return 800000 - count();
+
+	}
+	ForceAlign::ForceAlign(const std::string& name)
+	{
+
+		aris::core::fromXmlString(command(),
+			"<Command name=\"m_fa\"/>");
+	}
+	ForceAlign::~ForceAlign() = default;
+
+
+
 
 	ARIS_REGISTRATION{
 		aris::core::class_<ModelInit>("ModelInit")
