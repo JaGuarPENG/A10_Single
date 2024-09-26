@@ -1198,71 +1198,515 @@ namespace robot
 	{
 
 
-		imp_ -> m_ = int32Param("model");
-		
-		
+		imp_->m_ = int32Param("model");
 
-		static double move = 0.0003;
 
-		//dual transform modelbase into multimodel
+
+		static double move = 0.0001;
+
+		////dual transform modelbase into multimodel
+		//auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		////at(0) -> Arm1 -> white
+		//auto& arm1 = dualArm.subModels().at(0);
+		////at(1) -> Arm2 -> blue
+		//auto& arm2 = dualArm.subModels().at(1);
+
+		////transform to model
+		//auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
+		//auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+
+		////End Effector
+		//auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
+		//auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+
 		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
-		//at(0) -> Arm1 -> white
-		auto& arm1 = dualArm.subModels().at(0);
-		//at(1) -> Arm2 -> blue
-		auto& arm2 = dualArm.subModels().at(1);
+		auto& arm2 = dualArm.subModels().at(0);
 
-		//transform to model
-		auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
 		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
-
-		//End Effector
-		auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
 		auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
 
+		GravComp gc;
 
-		// Only One Arm Move Each command
-		auto jointMove = [&](double target_mp_[6]){
-        	double mp[6];
-        	double max_speed = 0.0001;
-			for (std::size_t i =0; i< 6;++i)
+		// Only One Arm Move Each Command
+		auto jointMove = [&](double target_mp_[6], int m_)
+		{
+			double mp[12];
+			for (std::size_t i = (0 + 6 * m_); i < (6 + 6 * m_); ++i)
 			{
-				//start back to zero"
-				if(controller()->motorPool()[i].actualPos() - target_mp_[i] < 8/180*PI){
-					if(controller()->motorPool()[i].actualPos() >= target_mp_[i] + 0.0001)
+
+				if (controller()->motorPool()[i].actualPos() - target_mp_[i - 6 * m_] < 8 / 180 * PI) {
+					if (controller()->motorPool()[i].actualPos() >= target_mp_[i - 6 * m_] + 0.0001)
 					{
 
 						mp[i] = controller()->motorPool()[i].targetPos() - 0.0001;
 					}
-					else if(controller()->motorPool()[i].targetPos() <=target_mp_[i] -0.0001){
+					else if (controller()->motorPool()[i].targetPos() <= target_mp_[i - 6 * m_] - 0.0001) {
 
 						mp[i] = controller()->motorPool()[i].targetPos() + 0.0001;
 					}
-					else{
-						mp[i] = target_mp_[i];
+					else {
+						mp[i] = target_mp_[i - 6 * m_];
 
 					}
-				}else{
-					if(controller()->motorPool()[i].actualPos() >= target_mp_[i] + 0.0001)
+				}
+				else {
+					if (controller()->motorPool()[i].actualPos() >= target_mp_[i - 6 * m_] + 0.0001)
 					{
 
 						mp[i] = controller()->motorPool()[i].targetPos() - 0.0001;
 					}
-					else if(controller()->motorPool()[i].targetPos() <=target_mp_[i] - 0.0001){
+					else if (controller()->motorPool()[i].targetPos() <= target_mp_[i - 6 * m_] - 0.0001) {
 
 						mp[i] = controller()->motorPool()[i].targetPos() + 0.0001;
 					}
-					else{
-						mp[i] = target_mp_[i];
+					else {
+						mp[i] = target_mp_[i - 6 * m_];
 
 					}
 
 				}
-				aris::dynamic::dsp(1, 6, mp);
-            	controller()->motorPool()[i].setTargetPos(mp[i]);
-        	}
-    	};
+				controller()->motorPool()[i].setTargetPos(mp[i]);
+			}
+		};
 
 
+
+		auto getForceData = [&](double* data_, int m_)
+		{
+
+			int raw_force[6]{ 0 };
+			for (std::size_t i = 0; i < 6; ++i)
+			{
+				if (ecMaster()->slavePool()[9 + 9 * m_].readPdo(0x6020, 0x01 + i, raw_force + i, 32))
+					mout() << "error" << std::endl;
+
+				data_[i] = (static_cast<double>(raw_force[i]) / 1000.0);
+
+			}
+
+			if (m_ == 0)
+			{
+				data_[0] = -data_[0];
+				data_[1] = -data_[1];
+
+				data_[3] = -data_[3];
+				data_[4] = -data_[4];
+			}
+			else if (m_ == 1)
+			{
+				data_[0] = -data_[0];
+				data_[1] = -data_[1];
+
+				data_[3] = -data_[3];
+				data_[4] = -data_[4];
+
+			}
+			else
+			{
+				mout() << "Wrong Model" << std::endl;
+			}
+
+
+		};
+
+
+		auto motorsPositionCheck = [](double current_sa_angle_[6], double target_pos_[6])
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				if (std::fabs(current_sa_angle_[i] - target_pos_[i]) >= move)
+				{
+					return false;
+				}
+			}
+
+			return true;
+		};
+
+		auto caculateAvgForce = [=](double force_data_[6], double temp_force_[6], int count_)
+		{
+			if (count() < imp_->current_stop_time + imp_->stop_time)
+			{
+
+				if (count() % 500 == 0 && imp_->accumulation_count < 10)
+				{
+					double temp2[6]{ 1,2,3,4,5,6 };
+					//getForceData(temp2, 0);
+
+					for (int i = 0; i < 6; i++)
+					{
+						temp_force_[i] = temp_force_[i] + temp2[i];
+					}
+
+
+					imp_->accumulation_count = imp_->accumulation_count + 1;
+					mout() << imp_->accumulation_count << std::endl;
+				}
+
+			}
+			else if (count() == imp_->current_stop_time + imp_->stop_time)
+			{
+				mout() << "stop! " << "count(): " << count() << std::endl;
+				imp_->accumulation_count = 0;
+				for (int i = 0; i < 6; i++)
+				{
+					force_data_[i] = temp_force_[i] / 10.0;
+				}
+				mout() << "Force Data " << count_ << '\n' << force_data_[0] << '\t' << force_data_[1] << '\t' << force_data_[2] << '\t'
+					<< force_data_[3] << '\t' << force_data_[4] << '\t' << force_data_[5] << std::endl;
+			}
+			else
+			{
+				mout() << "Flag Change " << count_ << std::endl;
+				imp_->stop_flag = false;
+			}
+		};
+
+
+
+
+		double current_angle[6] = { 0 };
+
+		for (int i = 0; i < 6; i++)
+		{
+			current_angle[i] = controller()->motorPool()[i].actualPos();
+		}
+
+
+		if (imp_->stop_flag)
+		{
+			if (imp_->stop_count == 1)
+			{
+
+				caculateAvgForce(imp_->force_data_1, imp_->temp_force1, 1);
+
+			}
+			else if (imp_->stop_count == 2)
+			{
+
+				caculateAvgForce(imp_->force_data_2, imp_->temp_force2, 2);
+
+			}
+			else if (imp_->stop_count == 3)
+			{
+
+				caculateAvgForce(imp_->force_data_3, imp_->temp_force3, 3);
+
+			}
+			else
+			{
+				mout() << "Stop Count Wrong: " << imp_->stop_count << " stop flag: " << imp_->stop_flag << std::endl;
+				return 0;
+			}
+
+			return 80000 - count();
+		}
+		else
+		{
+
+			// arm 2 blue arm
+			
+				// 	Init Pos
+				static double angle2_1[6]{ 0, 0, -5 * PI / 6, 5 * PI / 6, PI / 2, PI / 2 };
+
+				static double angle2_2[6]{ 0, 0, -5 * PI / 6, PI / 2, PI / 2, PI / 2 };
+
+				static double angle2_3[6]{ 0, 0, -5 * PI / 6, 2 * PI / 3, 2 * PI / 3, PI / 2 };
+
+				double current_sa_angle[6]{ 0 };
+
+				std::copy(current_angle , current_angle + 6, current_sa_angle);
+
+				//if (count() % 1000 == 0)
+				//{
+				//	mout() << current_sa_angle[0] << '\t' << current_sa_angle[1] << '\t' << current_sa_angle[2] << '\t'
+				//		<< current_sa_angle[3] << '\t' << current_sa_angle[4] << '\t' << current_sa_angle[5] << std::endl;
+
+				//}
+
+
+				if (!imp_->target1_reached)
+				{
+					model_a2.setInputPos(angle2_1);
+					if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+
+					jointMove(angle2_1, 0);
+
+					if (motorsPositionCheck(current_sa_angle, angle2_1))
+					{
+						mout() << "Target 1 Reached" << std::endl;
+
+
+						eeA2.getMpm(imp_->ee_pm_1);
+
+						imp_->target1_reached = true;
+						imp_->stop_count = 1;
+						imp_->current_stop_time = count();
+						imp_->stop_flag = true;
+						mout() << "current stop time: " << imp_->current_stop_time << std::endl;
+					}
+
+				}
+				else if (imp_->target1_reached && !imp_->target2_reached)
+				{
+					model_a2.setInputPos(angle2_2);
+					if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+
+					jointMove(angle2_2, 0);
+
+					if (motorsPositionCheck(current_sa_angle, angle2_2))
+					{
+						mout() << "Target 2 Reached" << std::endl;
+
+						eeA2.getMpm(imp_->ee_pm_2);
+
+						imp_->target2_reached = true;
+						imp_->stop_count = 2;
+						imp_->current_stop_time = count();
+						imp_->stop_flag = true;
+						mout() << "current stop time: " << imp_->current_stop_time << std::endl;
+					}
+				}
+				else if (imp_->target2_reached && !imp_->target3_reached)
+				{
+					model_a2.setInputPos(angle2_3);
+					if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+
+					jointMove(angle2_3, 0);
+
+					if (motorsPositionCheck(current_sa_angle, angle2_3))
+					{
+						mout() << "Target 3 Reached" << std::endl;
+
+						eeA2.getMpm(imp_->ee_pm_3);
+
+						imp_->target3_reached = true;
+						imp_->stop_count = 3;
+						imp_->current_stop_time = count();
+						imp_->stop_flag = true;
+						mout() << "current stop time: " << imp_->current_stop_time << std::endl;
+
+					}
+				}
+				else if (imp_->target3_reached && !imp_->target4_reached)
+				{
+					// Back To Init
+					model_a2.setInputPos(angle2_1);
+					if (model_a2.forwardKinematics())std::cout << "forward failed" << std::endl;
+
+					jointMove(angle2_1, 0);
+
+					if (motorsPositionCheck(current_sa_angle, angle2_1))
+					{
+						mout() << "Back To Init Pos" << std::endl;
+						mout() << "Current Angle: " << current_sa_angle[0] << '\t' << current_sa_angle[1] << '\t' << current_sa_angle[2] << '\t'
+							<< current_sa_angle[3] << '\t' << current_sa_angle[4] << '\t' << current_sa_angle[5] << std::endl;
+
+						imp_->target4_reached = true;
+
+					}
+
+				}
+				else if (imp_->target1_reached && imp_->target2_reached && imp_->target3_reached && imp_->target4_reached && !imp_->force_test_begin)
+				{
+					double t_vector[9]{ 0 };
+					double f_vector[9]{ 0 };
+
+					double f_matrix[54]{ 0 };
+					double r_matrix[54]{ 0 };
+
+
+					double ee_rm_1[9]{ 0 };
+					double ee_rm_2[9]{ 0 };
+					double ee_rm_3[9]{ 0 };
+
+					double current_force[6]{ 0 };
+
+					aris::dynamic::s_pm2rm(imp_->ee_pm_1, ee_rm_1);
+					aris::dynamic::s_pm2rm(imp_->ee_pm_2, ee_rm_2);
+					aris::dynamic::s_pm2rm(imp_->ee_pm_3, ee_rm_3);
+
+					
+
+					gc.getTorqueVector(imp_->force_data_1, imp_->force_data_2, imp_->force_data_3, t_vector);
+					gc.getForceVector(imp_->force_data_1, imp_->force_data_2, imp_->force_data_3, f_vector);
+
+					gc.getFMatrix(imp_->force_data_1, imp_->force_data_2, imp_->force_data_3, f_matrix);
+					gc.getRMatrix(ee_rm_1, ee_rm_2, ee_rm_3, r_matrix);
+
+					gc.getPLMatrix(f_matrix, t_vector, imp_->p_vector);
+					gc.getPLMatrix(r_matrix, f_vector, imp_->l_vector);
+
+					double current_ee_pm[16]{ 0 };
+					eeA2.getMpm(current_ee_pm);
+
+					gc.getCompFT(current_ee_pm, imp_->l_vector, imp_->p_vector, imp_->comp_f);
+					//getForceData(current_force, 0);
+
+					mout() << "Current Force After Compensation:" << '\n' << current_force[0] + imp_->comp_f[0] << '\t' << current_force[1] + imp_->comp_f[1] << '\t'
+						<< current_force[2] + imp_->comp_f[2] << '\t' << current_force[3] + imp_->comp_f[3] << '\t'
+						<< current_force[4] + imp_->comp_f[4] << '\t' << current_force[5] + imp_->comp_f[5] << std::endl;
+
+					mout() << "Current End Pos:" << '\n' << current_ee_pm[0] << '\t' << current_ee_pm[1] << '\t'
+						<< current_ee_pm[2] << '\t' << current_ee_pm[3] << '\t'
+						<< current_ee_pm[4] << '\t' << current_ee_pm[5] << std::endl;
+
+					imp_->force_test_begin = true;
+					mout() << "Force Test Start" << std::endl;
+
+				}
+				else if (imp_->force_test_begin)
+				{
+					double ee_pm[16]{ 0 };
+					eeA2.getMpm(ee_pm);
+
+					gc.getCompFT(ee_pm, imp_->l_vector, imp_->p_vector, imp_->comp_f);
+
+					double current_force[6]{ 0 };
+					//getForceData(current_force, 0);
+
+					if (count() % 100 == 0)
+					{
+						mout() << "Current Force After Compensation:" << '\n' << current_force[0] + imp_->comp_f[0] << '\t' << current_force[1] + imp_->comp_f[1] << '\t'
+							<< current_force[2] + imp_->comp_f[2] << '\t' << current_force[3] + imp_->comp_f[3] << '\t'
+							<< current_force[4] + imp_->comp_f[4] << '\t' << current_force[5] + imp_->comp_f[5] << std::endl;
+					}
+				}
+
+				if (count() == 100000)
+				{
+
+					mout() << "Over Time" << std::endl;
+
+					mout() << "P Vector: " << '\n' << imp_->p_vector[0] << '\t' << imp_->p_vector[1] << '\t' << imp_->p_vector[2] << '\t' << imp_->p_vector[3] << '\t'
+						<< imp_->p_vector[4] << '\t' << imp_->p_vector[5] << '\t' << imp_->p_vector[6] << std::endl;
+
+					mout() << "L Vector: " << '\n' << imp_->l_vector[0] << '\t' << imp_->l_vector[1] << '\t' << imp_->l_vector[2] << '\t' << imp_->l_vector[3] << '\t'
+						<< imp_->l_vector[4] << '\t' << imp_->l_vector[5] << '\t' << imp_->l_vector[6] << std::endl;
+
+						
+				}
+
+				return 100000 - count();
+
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+	}
+	ModelComP::ModelComP(const std::string& name)
+	{
+
+		aris::core::fromXmlString(command(),
+			"<Command name=\"m_comp\">"
+			"	<GroupParam>"
+			"	<Param name=\"model\" default=\"0\" abbreviation=\"m\"/>"
+			"	</GroupParam>"
+			"</Command>");
+	}
+	ModelComP::~ModelComP() = default;
+
+
+	auto ForceAlign::prepareNrt()->void
+	{
+
+		for (auto& m : motorOptions()) m =
+			aris::plan::Plan::CHECK_NONE |
+			aris::plan::Plan::NOT_CHECK_POS_CONTINUOUS_SECOND_ORDER;
+
+
+
+
+	}
+	auto ForceAlign::executeRT()->int
+	{
+
+		static double offset = 0.0001;
+
+		////dual transform modelbase into multimodel
+		//auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		////at(0) -> Arm1 -> white
+		//auto& arm1 = dualArm.subModels().at(0);
+		////at(1) -> Arm2 -> blue
+		//auto& arm2 = dualArm.subModels().at(1);
+
+		////transform to model
+		//auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
+		//auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+
+		////End Effector
+		//auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
+		//auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+
+		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		auto& arm2 = dualArm.subModels().at(0);
+
+		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+		auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+
+		GravComp gc;
+
+		
+	
+		double current_vel[6]{ 0 };
+		double current_pos[6]{ 0 };
+
+		double current_force[6]{ 0 };
+		double current_angle[6] = { 0 };
+		double current_pm[16]{ 0 };
+
+		double comp_force[6]{ 0 };
+		double Actual_force[6]{ 0 };
+
+		auto getForceData = [&](double* data_, int m_)
+		{
+
+			int raw_force[6]{ 0 };
+			for (std::size_t i = 0; i < 6; ++i)
+			{
+				if (ecMaster()->slavePool()[9 + 9 * m_].readPdo(0x6020, 0x01 + i, raw_force + i, 32))
+					mout() << "error" << std::endl;
+
+				data_[i] = (static_cast<double>(raw_force[i]) / 1000.0);
+
+			}
+
+			if (m_ == 0)
+			{
+				data_[0] = -data_[0];
+				data_[1] = -data_[1];
+
+				data_[3] = -data_[3];
+				data_[4] = -data_[4];
+			}
+			else if (m_ == 1)
+			{
+				data_[0] = -data_[0];
+				data_[1] = -data_[1];
+
+				data_[3] = -data_[3];
+				data_[4] = -data_[4];
+
+			}
+			else
+			{
+				mout() << "Wrong Model" << std::endl;
+			}
+
+
+		};
+
+
+		//single arm move 1-->white 2-->blue
 		auto saMove = [&](double* pos_, aris::dynamic::Model& model_, int type_) {
 
 			model_.setOutputPos(pos_);
@@ -1297,195 +1741,66 @@ namespace robot
 			}
 		};
 
-		auto cal_average = [&](double *data, int size) -> double {
-			double sum = 0.0;  // 初始化和为0
-
-			// 遍历数组，计算和
-			for (int i = 0; i < size; ++i) {
-				sum += data[i];
-			}
-
-			// 返回平均值
-			return sum / size;
-		};
-
-		auto get_force_data = [&](double* data_)
-		{
-
-			int raw_force[6]{ 0 };
-			for (std::size_t i = 0; i < 6; ++i)
-			{
-				if (ecMaster()->slavePool()[18].readPdo(0x6020, 0x01 + i, raw_force + i, 32))
-					mout() << "error" << std::endl;
-
-				data_[i] = (static_cast<double>(raw_force[i]) / 1000.0);
-
-			}
-
-		};
-
-
-		auto motorsPositionCheck = [](double current_sa_angle_[6], double target_pos_[6])
-		{
-			for (int i = 0; i < 12; i++)
-			{
-				if (std::fabs(current_sa_angle_[i] - target_pos_[i]) >= move)
-				{
-					return false;
-				}
-			}
-
-			return true;
-		};
-
-
-		static double init_pos[12] = 
-		{ 0, 0, 5 * PI / 6, -5 * PI / 6, - PI / 2, 0, 
-		0, 0, -5 * PI / 6, 5 * PI / 6, PI / 2, PI / 2 };
-
-		double current_angle[12] = { 0 };
-
-		for (int i = 0; i < 12; i++)
-		{
-			current_angle[i] = controller()->motorPool()[i].targetPos();
-		}
-	
-
-
-
-
-		// arm 1 white arm
-		if (imp_->m_ == 0)
-		{
-			//static double angle1_1[6]{0, 0, 5 * PI / 6, -5 * PI / 6, -PI / 2, 0};
 		
-			//static double angle1_2[6]{0, 0, 5 * PI / 6, -PI / 2, -PI / 2, 0};
-
-			//static double angle1_3[6]{0, 0, 5 * PI / 6, -2 * PI / 3, -2 * PI / 3, 0};
-
-			//test
-			static double angle1_1[12]{ 0, 0, -0.0005, 0.0005, 0.001, 0.001 };
-
-			static double angle1_2[12]{ 0, 0, -0.0005, 0.0015, 0.0015, 0.002 };
-
-			static double angle1_3[12]{ 0, 0, -0.0005, 0.0015, 0.0032, 0.004 };
-
-
-			double current_sa_angle[6]{ 0 };
-			std::copy(current_angle, current_angle + 6, current_sa_angle);
-
-			if (count() % 1000 == 0)
-			{
-				aris::dynamic::dsp(1, 6, current_sa_angle);
-
-			}
-
-
-			
-
-			if(!imp_->target1_reached)
-			{
-				model_a1.setInputPos(angle1_1);
-				if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
-				
-				jointMove(angle1_1);
-
-				if(motorsPositionCheck(current_sa_angle, angle1_1))
-				{
-					mout() << "Target 1 Reached" << std::endl;
-					imp_->target1_reached = true;
-				}
-
-			}
-			else if(imp_->target1_reached && !imp_->target2_reached)
-			{
-				model_a1.setInputPos(angle1_2);
-				if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
-				
-				jointMove(angle1_2);
-
-				if(motorsPositionCheck(current_sa_angle, angle1_2))
-				{
-					mout() << "Target 2 Reached" << std::endl;
-					imp_->target2_reached = true;
-				}
-			}
-			else if(imp_->target2_reached && !imp_->target3_reached)
-			{
-				model_a1.setInputPos(angle1_3);
-				if (model_a1.forwardKinematics())std::cout << "forward failed" << std::endl;
-				
-				jointMove(angle1_3);
-
-				if(motorsPositionCheck(current_sa_angle, angle1_3))
-				{
-					mout() << "Target 3 Reached" << std::endl;
-					imp_->target3_reached = true;
-					return 0;
-				}
-			}
-			
-			if (count() == 50000)
-			{
-				aris::dynamic::dsp(1, 12, current_angle);
-
-				mout() << "Over Time" << std::endl;
-			}
-
-			return 10 - count();
-			
-
-		}
-
-		// arm 2 blue arm
-		else if(imp_->m_ == 1)
+		//Get Current Angle
+		for (int i = 0; i < 6; i++)
 		{
-			// 	Init Pos
-			static double pos2_1[12]{0, 0, -5 * PI / 6, 5 * PI / 6, PI / 2, PI / 2};
-		
-			static double pos2_2[12]{0, 0, -5 * PI / 6, PI / 2, PI / 2, PI / 2};
-
-			static double pos2_3[12]{0, 0, -5 * PI / 6, 2 * PI / 3, 2 * PI / 3, PI / 2};
-
-			
-			
-
-			return 0;
-			
-
-
-
-
+			current_angle[i] = controller()->motorPool()[i].actualPos();
 		}
-		// wrong model
-		else
+
+		//Get Actual Force
+		getForceData(current_force, 0);
+		gc.getCompFT(current_pm, imp_->l_vector, imp_->p_vector, comp_force);
+		for (int i = 0; i < 6; i++)
 		{
-			mout()<<"Wrong Model"<<std::endl;
-			throw std::runtime_error("Arm Type Error");
+			Actual_force[i] = comp_force[i] + current_force[i];
 		}
 
-
-
-
-
-
-
-
-
+		eeA2.getV(current_vel);
+		eeA2.getP(current_pos);
 		
+		//Contact Check
+		
+		if (!imp_->contact_check)
+		{
+			if (abs(Actual_force[2]) > 0.5)
+			{
+				imp_->contact_check = true;
+				// Set Disred Pos 
+				imp_->x_d = current_pos[0];
+				mout() << "Disred X Pos: " << imp_->x_d << std::endl;
+			}
+			else
+			{
+				double target_pos[6]{ 0 };
+				std::copy(current_pos, current_pos + 6, target_pos);
+				target_pos[0] -= 0.00003;
+				saMove(target_pos, model_a2, 0);
+
+			}
+			
+		}
+		else if (imp_->contact_check)
+		{
+
+		}
+
+		//Over Time Exit
+		if (count() == 800000)
+		{
+			mout() << "Over Time" << std::endl;
+		}
+
+		return 800000 - count();
 
 	}
-	ModelComP::ModelComP(const std::string& name)
+	ForceAlign::ForceAlign(const std::string& name)
 	{
 
 		aris::core::fromXmlString(command(),
-			"<Command name=\"m_comp\">"
-			"	<GroupParam>"
-			"	<Param name=\"model\" default=\"0\" abbreviation=\"m\"/>"
-			"	</GroupParam>"
-			"</Command>");
+			"<Command name=\"m_fa\"/>");
 	}
-	ModelComP::~ModelComP() = default;
+	ForceAlign::~ForceAlign() = default;
 
 
 
@@ -1504,6 +1819,8 @@ namespace robot
 		aris::core::class_<ModelComP>("ModelComP")
 			.inherit<aris::plan::Plan>();
 		aris::core::class_<ModelTest>("ModelTest")
+			.inherit<aris::plan::Plan>();
+		aris::core::class_<ForceAlign>("ForceAlign")
 			.inherit<aris::plan::Plan>();
 
 	}

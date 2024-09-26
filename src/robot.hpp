@@ -105,13 +105,74 @@ class ModelComP :public aris::core::CloneObject<ModelComP, aris::plan::Plan>
 			bool target1_reached = false;
 			bool target2_reached = false;
 			bool target3_reached = false;
+			bool target4_reached = false;
+
+			bool force_test_begin = false;
+
+			bool stop_flag = false;
+			int stop_count = 0;
+			int stop_time = 5500;
+			int current_stop_time = 0;
+
+			int accumulation_count = 0;
+
+			//temp data to stroage 10 times of actual force
+			double temp_force1[6] = { 0 };
+			double temp_force2[6] = { 0 };
+			double temp_force3[6] = { 0 };
+
+			double force_data_1[6] = { 0 };
+			double force_data_2[6] = { 0 };
+			double force_data_3[6] = { 0 };
+
+			double ee_pm_1[16]{ 0 };
+			double ee_pm_2[16]{ 0 };
+			double ee_pm_3[16]{ 0 };
+
+			double comp_f[6]{ 0 };
+
+			double p_vector[6]{ 0 };
+			double l_vector[6]{ 0 };
 
 			int m_;
 		};
 
 	};
 
+class ForceAlign :public aris::core::CloneObject<ForceAlign, aris::plan::Plan>
+	{
+	public:
+		auto virtual prepareNrt()->void;
+		auto virtual executeRT()->int;
 
+		virtual ~ForceAlign();
+		explicit ForceAlign(const std::string& name = "ForceAlign");
+
+	private:
+		struct Imp;
+		aris::core::ImpPtr<Imp> imp_;
+
+		struct ForceAlign::Imp {
+
+			bool contact_check = false;
+
+			double comp_f[6]{ 0 };
+
+			double p_vector[6]{ 0 };
+			double l_vector[6]{ 0 };
+
+			double x_d;
+			double Ke = 220000;
+			double K = 3;
+			
+			double B[6]{ 0.25,0.25,0.7,0.0,0.0,0.0 };
+			double M[6]{ 0.1,0.1,0.1,0.1,0.1,0.1 };
+
+			double desired_force = 5;
+
+		};
+
+};
 
 
 }
