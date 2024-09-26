@@ -154,9 +154,11 @@ class ForceAlign :public aris::core::CloneObject<ForceAlign, aris::plan::Plan>
 
 		struct ForceAlign::Imp {
 
+			bool init = false;
 			bool contact_check = false;
 
 			double comp_f[6]{ 0 };
+			double init_force[6]{ 0 };
 
 			double p_vector[6]{ 0 };
 			double l_vector[6]{ 0 };
@@ -169,6 +171,7 @@ class ForceAlign :public aris::core::CloneObject<ForceAlign, aris::plan::Plan>
 			double M[6]{ 0.1,0.1,0.1,0.1,0.1,0.1 };
 
 			double desired_force = 5;
+			int contact_count = 0;
 
 		};
 
