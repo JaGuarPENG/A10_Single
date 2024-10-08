@@ -1,10 +1,12 @@
 #include"plan.hpp"
 #include<cmath>
 #include<iostream>
+#include <fstream>
 #include <aris.hpp>
 
 
 using namespace std;
+const std::filesystem::path fspath = "C:/Users/11051/Source/repos/A10_Single/force_vector.xml ";
 
 
 
@@ -283,4 +285,57 @@ auto GravComp::getCompFT(double current_pose_[16], double L_[6], double P_[6], d
 	for (int i = 3; i < 6; i++) {
 		comp_f_[i] = -M0[i - 3] - Mg[i - 3];
 	}
+
+
 }
+
+auto GravComp::savePLVector(const double P_[6], const double L_[6]) -> void {
+
+	ofstream outFile(fspath);  // 打开文本文件
+	if (!outFile) {
+		cerr << "无法打开文件进行写入" << endl;
+		return;
+	}
+
+	// 写入 B 数组
+	for (int i = 0; i < 6; ++i) {
+		outFile << P_[i] << " ";
+	}
+	outFile << endl;
+
+	// 写入 L 数组
+	for (int i = 0; i < 6; ++i) {
+		outFile << L_[i] << " ";
+	}
+	outFile << endl;
+
+	outFile.close();
+
+}
+
+
+auto GravComp::loadPLVector(double P_[6], double L_[6]) -> void {
+
+	ifstream inFile(fspath);  // 打开文本文件
+	if (!inFile) {
+		cerr << "无法打开文件进行读取" << endl;
+		return;
+	}
+
+	// 读取 B 数组
+	for (int i = 0; i < 6; ++i) {
+		inFile >> P_[i];
+	}
+
+	// 读取 L 数组
+	for (int i = 0; i < 6; ++i) {
+		inFile >> L_[i];
+	}
+
+	inFile.close();
+
+
+}
+
+
+

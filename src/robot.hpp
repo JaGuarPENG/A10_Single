@@ -16,6 +16,16 @@ namespace robot
 
 		virtual ~ModelSetPos();
 		explicit ModelSetPos(const std::string& name = "ModelSetPos");
+
+	private:
+		struct Imp;
+		aris::core::ImpPtr<Imp> imp_;
+
+		struct ModelSetPos::Imp {
+
+			double p_vector[6]{ 0 };
+			double l_vector[6]{ 0 };
+		};
 	};
 
 

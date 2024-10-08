@@ -11,6 +11,8 @@ cosCurve s1(1.0, 2 * PI, 0);
 
 
 
+
+
 namespace robot
 {
 
@@ -18,6 +20,11 @@ namespace robot
 	{
         for (auto& m : motorOptions()) m = aris::plan::Plan::CHECK_NONE |
 			aris::plan::Plan::NOT_CHECK_POS_CONTINUOUS_SECOND_ORDER;
+
+		GravComp gc;
+		gc.loadPLVector(imp_->p_vector, imp_->l_vector);
+		mout() << "Load P & L Vector" << std::endl;
+
 	}
 	auto ModelSetPos::executeRT()->int
 	{
@@ -33,19 +40,19 @@ namespace robot
 		double input_angle2[6] =
 		{ 0, 0, -5 * PI / 6, PI / 3, PI / 2, 0 };
 
-		//dual transform modelbase into multimodel
-		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
-		//at(0) -> Arm1 ->white
-		auto& arm1 = dualArm.subModels().at(0);
-		//at(1) -> Arm2 ->blue
-		auto& arm2 = dualArm.subModels().at(1);
+		////dual transform modelbase into multimodel
+		//auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		////at(0) -> Arm1 ->white
+		//auto& arm1 = dualArm.subModels().at(0);
+		////at(1) -> Arm2 ->blue
+		//auto& arm2 = dualArm.subModels().at(1);
 
-		//transform to model
-		auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
-		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+		////transform to model
+		//auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
+		//auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
 
-		auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
-		auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+		//auto& eeA1 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a1.generalMotionPool().at(0));
+		//auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
 
 
 		//double eepA1[6] = { 0 };
@@ -192,6 +199,13 @@ namespace robot
 		//double force_data_2[6]{ -0.136719, 0.078125, 0.664062, 0.00507813, 0.00351563, 0.00117188 };
 		//double force_data_3[6]{ -0.0976562, -0.195312, 0.410156, 0.00507813, 0.00273437, 0.00117188 };
 
+
+		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		auto& arm2 = dualArm.subModels().at(0);
+
+		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+		auto& eeA2 = dynamic_cast<aris::dynamic::GeneralMotion&>(model_a2.generalMotionPool().at(0));
+
 		double force_data_1[6]{ 2.0856,	6.357,	4.906,	0.0423, - 0.0283,	0.0808 };
 		double force_data_2[6]{ 2.1013,	4.5775,	7.9831,	0.0378, - 0.0286,	0.0807 };
 		double force_data_3[6]{ 3.0116,	5.8671,	6.4544,	0.0428 ,- 0.0324,	0.0806 };
@@ -280,7 +294,6 @@ namespace robot
 		double comp_f[6]{ 0 };
 		gc.getCompFT(ee_pm_1, l_vector, p_vector, comp_f);
 
-
 		double final_force[6]{ 0 };
 		for (int i = 0; i < 6; i++)
 		{
@@ -290,11 +303,15 @@ namespace robot
 		mout() << "ff: " << std::endl;
 		aris::dynamic::dsp(1, 6, final_force);
 
+		//gc.savePLVector(p_vector, l_vector);
 
+		//double temp_p[6]{ 0 };
+		//double temp_l[6]{ 0 };
 
+		//gc.loadPLVector(temp_p, temp_l);
 
-
-	
+		aris::dynamic::dsp(1, 6, imp_->p_vector);
+		aris::dynamic::dsp(1, 6, imp_->l_vector);
 
 
 		return 0;
@@ -415,16 +432,16 @@ namespace robot
 	auto ModelTest::executeRT() -> int
 	{
 
-		//dual transform modelbase into multimodel
-		auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
-		//at(0) -> Arm1 ->white
-		auto& arm1 = dualArm.subModels().at(0);
-		//at(1) -> Arm2 ->blue
-		auto& arm2 = dualArm.subModels().at(1);
+		////dual transform modelbase into multimodel
+		//auto& dualArm = dynamic_cast<aris::dynamic::MultiModel&>(modelBase()[0]);
+		////at(0) -> Arm1 ->white
+		//auto& arm1 = dualArm.subModels().at(0);
+		////at(1) -> Arm2 ->blue
+		//auto& arm2 = dualArm.subModels().at(1);
 
-		//transform to model
-		auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
-		auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
+		////transform to model
+		//auto& model_a1 = dynamic_cast<aris::dynamic::Model&>(arm1);
+		//auto& model_a2 = dynamic_cast<aris::dynamic::Model&>(arm2);
 
 
 		double force_data1[6]{ 0.126953, 0, 0.410156, 0.00234375, 0.00390625, 0.00117188 };
@@ -732,9 +749,22 @@ namespace robot
 		}
 
 
+		GravComp gc;
 
+		double p[6]{ 0 };
+		double l[6]{ 0 };
 
+		gc.loadPLVector(p, l);
+		
+		for (int i = 0; i < 6; i++)
+		{
+			std::cout << "p "  << p[i] << std::endl;
+		}
 
+		for (int i = 0; i < 6; i++)
+		{
+			std::cout << "l " << l[i] << std::endl;
+		}
 
 
 
@@ -1824,12 +1854,6 @@ namespace robot
 		{
 			mout() << current_angle[0] << '\t' << current_angle[1] << '\t' << current_angle[2] << '\t'
 				<< current_angle[3] << '\t' << current_angle[4] << '\t' << current_angle[5] << std::endl;
-		}
-
-		model_a2.setInputPos(current_angle);
-		if (model_a2.forwardKinematics())
-		{
-			throw std::runtime_error("Forward Kinematics Position Failed!");
 		}
 
 
