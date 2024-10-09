@@ -81,6 +81,53 @@ namespace robot
 		double cef_;
 	};
 
+	class ModelTest2 :public aris::core::CloneObject<ModelTest2, aris::plan::Plan>
+	{
+	public:
+		auto virtual prepareNrt()->void;
+		auto virtual executeRT()->int;
+
+		virtual ~ModelTest2();
+		explicit ModelTest2(const std::string& name = "ModelTest2");
+	private:
+		struct Imp;
+		aris::core::ImpPtr<Imp> imp_;
+
+		struct ModelTest2::Imp {
+
+			//Flag
+			bool init = false;
+			bool contact_check = false;
+
+			//Force Compensation Parameter
+			double comp_f[6]{ 0 };
+			double init_force[6]{ 0 };
+
+			double p_vector[6]{ 0 };
+			double l_vector[6]{ 0 };
+
+			//Desired Pos, Vel, Acc, Foc
+			double x_d[6]{ 0 };
+			double v_d[6]{ 0 };
+			double a_d[6]{ 0 };
+			double f_d[6]{ 0 };
+
+			//Impedence Parameter
+			double K[6] = { 100,100,100,100,100,100 };
+			double B[6]{ 30,30,30,30,30,30 };
+			double M[6]{ 1,1,1,1,1,1 };
+
+			double Ke[6] = { 220000,220000,220000,220000,220000,220000 };
+
+			//Counter
+			int contact_count = 0;
+
+			//Test
+			double actual_force[6]{ 0 };
+
+		};
+	};
+
 
 	class ModelMoveX :public aris::core::CloneObject<ModelMoveX, aris::plan::Plan>
 	{
@@ -179,13 +226,65 @@ class ForceAlign :public aris::core::CloneObject<ForceAlign, aris::plan::Plan>
 			
 			double B[6]{ 0.25,0.25,0.7,0.0,0.0,0.0 };
 			double M[6]{ 0.1,0.1,0.1,0.1,0.1,0.1 };
+			
 
 			double desired_force = 5;
 			int contact_count = 0;
 
 		};
 
-};
+
+
+	};
+
+
+class ForceDragging :public aris::core::CloneObject<ForceDragging, aris::plan::Plan>
+	{
+public:
+	auto virtual prepareNrt()->void;
+	auto virtual executeRT()->int;
+
+	virtual ~ForceDragging();
+	explicit ForceDragging(const std::string& name = "ForceDragging");
+
+private:
+	struct Imp;
+	aris::core::ImpPtr<Imp> imp_;
+
+	struct ForceDragging::Imp {
+
+		//Flag
+		bool init = false;
+		bool contact_check = false;
+
+		//Force Compensation Parameter
+		double comp_f[6]{ 0 };
+		double init_force[6]{ 0 };
+
+		double p_vector[6]{ 0 };
+		double l_vector[6]{ 0 };
+
+		//Desired Pos, Vel, Acc, Foc
+		double x_d[6]{ 0 };
+		double v_d[6]{ 0 };
+		double a_d[6]{ 0 };
+		double f_d[6]{ 0 };
+
+		//Impedence Parameter
+		double K[6] = { 3,3,3,3,3,3 };
+		double B[6]{ 0.25,0.25,0.7,0.0,0.0,0.0 };
+		double M[6]{ 0.1,0.1,0.1,0.1,0.1,0.1 };
+
+		//Counter
+		int contact_count = 0;
+
+		//Test
+		double actual_force[6]{ 0 };
+
+		};
+
+
+	};
 
 
 }

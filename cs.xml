@@ -449,6 +449,14 @@
 				<Command __prop_name__="command" name="m_fa">
 				</Command>
 			</ForceAlign>
+			<ForceDragging name="plan">
+				<Command __prop_name__="command" name="m_fd">
+				</Command>
+			</ForceDragging>
+			<ModelTest2 name="plan">
+				<Command __prop_name__="command" name="m_t">
+				</Command>
+			</ModelTest2>
 		</PlanPoolObject>
     </PlanRoot>
     <InterfacePoolObject __prop_name__="interface"/>
