@@ -980,9 +980,16 @@ namespace robot
 			}
 		};
 
+		for (std::size_t i = 0; i < 6; ++i)
+		{
+			imp_->actual_force[i] = 0;
+		}
+
+
+
 		if (count() > 10 && count() <= 100)
 		{
-			mout() << "fex" << std::endl;
+			//mout() << "fex" << std::endl;
 			imp_->actual_force[2] = -0.55;
 		}
 		else if (count() > 1000 && count() <= 2000)
@@ -1011,7 +1018,7 @@ namespace robot
 			eeA2.getP(current_pos);
 			eeA2.getP(imp_->x_d);
 
-			mout() << current_pos[0] << '\t' << current_pos[1] << '\t' << current_pos[2] << '\t'
+			mout() << "init"<< current_pos[0] << '\t' << current_pos[1] << '\t' << current_pos[2] << '\t'
 				<< current_pos[3] << '\t' << current_pos[4] << '\t' << current_pos[5] << std::endl;
 			
 		}
@@ -1025,6 +1032,7 @@ namespace robot
 
 
 			double acc[6]{ 0 };
+			double dv[6]{ 0 };
 			double dx[6]{ 0 };
 			double dt = 0.001;
 
@@ -1036,27 +1044,36 @@ namespace robot
 
 			for (int i = 0; i < 6; i++)
 			{
-				dx[i] = current_pos[i] - imp_->x_d[i] + (current_vel[i] - imp_->v_d[i] + acc[i] * dt) * dt;
-				current_pos[i] = current_pos[i] + dx[i];
+
+				dx[i] = current_pos[i] - imp_->x_d[i] + 0.5 * acc[i] * dt * dt + (current_vel[i] - imp_->v_d[i]) * dt;
+				current_pos[i] = dx[i] + imp_->x_d[i];
+
 			}
 			
-			mout() << current_pos[0] << '\t' << current_pos[1] << '\t' << current_pos[2] << '\t'
-				<< current_pos[3] << '\t' << current_pos[4] << '\t' << current_pos[5] << std::endl;
+			//mout() << current_pos[0] << '\t' << current_pos[1] << '\t' << current_pos[2] << '\t'
+			//	<< current_pos[3] << '\t' << current_pos[4] << '\t' << current_pos[5] << std::endl;
 
-			/*if (count() % 10 == 0)
+			//mout() << dx[0] << '\t' << dx[1] << '\t' << dx[2] << '\t'
+			//	<< dx[3] << '\t' << dx[4] << '\t' << dx[5] << std::endl;
+
+			//mout() << acc[0] << '\t' << acc[1] << '\t' << acc[2] << '\t'
+			//	<< acc[3] << '\t' << acc[4] << '\t' << acc[5] << std::endl;
+
+			if (count() % 100 == 0)
 			{
 				mout() << current_pos[0] << '\t' << current_pos[1] << '\t' << current_pos[2] << '\t'
 					<< current_pos[3] << '\t' << current_pos[4] << '\t' << current_pos[5] << std::endl;
-			}*/
+			}
 
 			saMove(current_pos, model_a2, 0);
+
 
 		}
 
 
 		
 
-		return 5000;
+		return 5000 - count();
 	}
 	ModelTest2::ModelTest2(const std::string& name)
 	{

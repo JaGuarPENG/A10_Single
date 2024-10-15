@@ -113,11 +113,11 @@ namespace robot
 			double f_d[6]{ 0 };
 
 			//Impedence Parameter
-			double K[6] = { 100,100,100,100,100,100 };
-			double B[6]{ 30,30,30,30,30,30 };
-			double M[6]{ 1,1,1,1,1,1 };
+			double K[6]{ 10,10,10,10,10,10 };
+			double B[6]{ 5,5,5,5,5,5 };
+			double M[6]{ 60,60,60,60,60,60 };
 
-			double Ke[6] = { 220000,220000,220000,220000,220000,220000 };
+			double Ke[6]{ 220000,220000,220000,220000,220000,220000 };
 
 			//Counter
 			int contact_count = 0;

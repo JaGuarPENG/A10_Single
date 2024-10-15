@@ -4,7 +4,7 @@
 #include "robot.hpp"
 
 
-const std::filesystem::path path = "C:/Users/11051/Source/repos/A10_Single/cs.xml ";
+const std::filesystem::path path = "C:/Users/11051/Source/repos/JaGuarPENG/A10_Single/cs.xml ";
 
 int main(int argc, char *argv[])
 {
